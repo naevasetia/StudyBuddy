@@ -1,4 +1,5 @@
 # FINAL attentive/distracted detection (App-friendly version)
+# attentiveORdistracted_copy.py
 import torch
 import torch.nn as nn
 import torchvision.models as models
@@ -13,10 +14,13 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
 
 # ==================== CONFIGURATION ====================
-BEHAVIORAL_MODEL_PATH = r"E:\AI-StudyBuddy\ai-backend\Emotion_Behavior\models\attention_model_best.pth"
-EMOTION_MODEL_PATH = r"E:\AI-StudyBuddy\ai-backend\Emotion_Behavior\models\face_model.h5"
+BASE_DIR = Path(__file__).resolve().parent
+
+BEHAVIORAL_MODEL_PATH = BASE_DIR / "models" / "attention_model_best.pth"
+EMOTION_MODEL_PATH = BASE_DIR / "models" / "face_model.h5"
+
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-CAPTURE_INTERVAL = 300
+CAPTURE_INTERVAL = 120
 SEQUENCE_DURATION = 10
 FPS = 1
 
@@ -239,14 +243,16 @@ def calculate_attentiveness_score(engagement, boredom, confusion, frustration, e
         1 * (3 - frust_adj)
     )
 
-    # Step 3: Normalize to 0-10 scale
-    normalized_score = ((raw_score + 9) / 47.5) * 10
+    # Step 3: Center raw score, apply sigmoid, then scale to 0-10
+    centered_raw = raw_score - 19.25
+    sigmoid_score = 1 / (1 + np.exp(-centered_raw))
+    normalized_score = sigmoid_score * 10
 
     # Ensure score is within bounds
     normalized_score = np.clip(normalized_score, 0, 10)
 
     # Step 4: Classify
-    classification = 'Attentive' if normalized_score >= 6.0 else 'Distracted'
+    classification = 'Attentive' if normalized_score >= 7.0 else 'Distracted'
 
     details = {
         'base_scores': {

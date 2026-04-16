@@ -48,6 +48,18 @@ const state = {
 const $  = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
 
+/* ================= AUTO QUIZ MODAL ELEMENTS ================= */
+let autoModal,
+    autoTitle,
+    autoBody,
+    autoResult,
+    autoScore,
+    autoStatus,
+    autoDifficulty,
+    autoConfirm,
+    autoCancel;
+
+
 /*==================== Theme ====================*/
 function saveTheme(mode){ try{localStorage.setItem('sb.theme',mode);}catch{} }
 function loadTheme(){ try{return localStorage.getItem('sb.theme')||'dark';}catch{return 'dark';} }
@@ -122,6 +134,46 @@ function showToast(message, kind = 'info') {
   }, 3500);
 }
 
+function mapScoreToDifficulty(score) {
+  if (score < 4) return 'Easy';
+  if (score < 7) return 'Medium';
+  return 'Hard';
+}
+
+function openAutoQuizModal() {
+  autoModal.classList.remove('hidden');
+  autoTitle.textContent = 'Checking your focus…';
+  autoTitle.classList.add('is-loading');
+
+  autoBody.textContent = 'Please stay still and look at the screen for a few seconds.';
+  autoResult.style.display = 'none';
+  autoConfirm.disabled = true;
+}
+
+
+function closeAutoQuizModal() {
+  $('#autoQuizModal')?.classList.add('hidden');
+}
+
+function showAutoQuizResult(score, classification) {
+  autoTitle.classList.remove('is-loading');
+  autoTitle.textContent = 'Focus check complete';
+
+  autoScore.textContent = score.toFixed(1);
+  autoStatus.textContent = classification;
+
+  let difficulty = 'Medium';
+  if (score >= 7.5) difficulty = 'Hard';
+  else if (score < 5) difficulty = 'Easy';
+
+  autoDifficulty.textContent = difficulty;
+
+  autoResult.style.display = 'block';
+  autoConfirm.disabled = false;
+
+  // store for quiz generation
+  autoConfirm.dataset.difficulty = difficulty;
+}
 
 
 
@@ -309,7 +361,6 @@ function renderAIPdfList() {
   list.innerHTML = '';
   for (const item of pdfs) {
     const li = document.createElement('li');
-    li.style.cursor = 'pointer';
 
     const isSelected = state.ai.selectedPdf && state.ai.selectedPdf.path === item.path;
 
@@ -322,16 +373,43 @@ function renderAIPdfList() {
         border-radius:8px;
         ${isSelected ? 'background: rgba(139,124,251,0.15);' : ''}
       ">
-        <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+        <span class="ai-pdf-name" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer;">
           ${escapeHtml(item.name || item.path)}
         </span>
         <span class="chip">${item.pages ?? '?'} pages</span>
+        <button class="btn small ghost ai-pdf-delete" title="Delete PDF">Delete</button>
       </div>
     `;
 
-    li.addEventListener('click', () => {
+    li.querySelector('.ai-pdf-name').addEventListener('click', () => {
       state.ai.selectedPdf = item;
-      renderAIPdfList();  // re-render to update highlight
+      renderAIPdfList();
+    });
+
+    li.querySelector('.ai-pdf-delete').addEventListener('click', async (e) => {
+      e.stopPropagation();
+
+      const source = item.name || item.path;
+      const ok = confirm(`Delete "${source}" from your notes?`);
+      if (!ok) return;
+
+      const res = await window.electronAPI.ai.deletePdf(source);
+
+      if (!res?.ok || res.data?.ok === false) {
+        showToast('Failed to delete PDF.', 'warn');
+        return;
+      }
+
+      state.ai.pdfs = state.ai.pdfs.filter(pdf => pdf.path !== item.path);
+
+      if (state.ai.selectedPdf && state.ai.selectedPdf.path === item.path) {
+        state.ai.selectedPdf = null;
+      }
+
+      saveAIPdfs();
+      renderAIPdfList();
+
+      showToast(`Deleted ${source}`);
     });
 
     list.appendChild(li);
@@ -1202,6 +1280,17 @@ function wireAI(){
 
   const resultBox      = $('#aiResult');
   const statusLabel    = $('#aiStatus');
+  autoModal      = document.getElementById('autoQuizModal');
+  autoTitle      = document.getElementById('autoQuizTitle');
+  autoBody       = document.getElementById('autoQuizBody');
+  autoResult     = document.getElementById('autoQuizResult');
+  autoScore      = document.getElementById('autoQuizScore');
+  autoStatus     = document.getElementById('autoQuizStatus');
+  autoDifficulty = document.getElementById('autoQuizDifficulty');
+  autoConfirm    = document.getElementById('autoQuizConfirm');
+  autoCancel     = document.getElementById('autoQuizCancel');
+
+  
 
   // if the route doesn't exist (older HTML), bail
   if (!resultBox) return;
@@ -1448,49 +1537,102 @@ function wireAI(){
   });
 
 
-  // ---- QUIZ BUTTON ----
-  quizBtn?.addEventListener('click', async () => {
-    const topic = topicInput?.value.trim() || '';
-    const difficulty = difficultySel?.value || 'Medium';
-    const n = Number(numQInput?.value || 5) || 5;
+// --- QUIZ BUTTON --- 
+quizBtn?.addEventListener('click', async () => {
+  const topic = topicInput?.value.trim();
+  const n = Number(numQInput?.value || 5);
+  const autoMode = $('#aiAutoMode')?.checked;
 
-    if (!topic) {
-      alert('Type a topic first.');
+  if (!topic) {
+    alert('Type a topic first.');
+    return;
+  }
+
+  /* ================= AUTO MODE ================= */
+  if (autoMode) {
+    openAutoQuizModal();
+
+    try {
+      const res = await window.electronAPI.ai.attentive();
+
+      if (!res || !res.ok) {
+        throw new Error(res?.error || 'Focus check failed');
+      }
+
+      const data = res.data || {};
+      const score = Number(data.score || data.normalized_score || 0);
+      const classification = data.classification || 'Unknown';
+
+      showAutoQuizResult(score, classification);
+
+      autoConfirm.onclick = async () => {
+        closeAutoQuizModal();
+        resetQuiz();
+
+        const difficulty = autoConfirm.dataset.difficulty || 'Medium';
+        setStatus(`Generating ${difficulty} quiz…`);
+
+        const quizRes = await window.electronAPI.ai.quiz(
+          topic,
+          difficulty,
+          n
+        );
+
+        if (!quizRes || !quizRes.ok) {
+          showError(quizRes?.error || 'Quiz failed');
+          return;
+        }
+
+        const qs = quizRes.data.questions || [];
+        state.ai.quiz.questions = qs;
+        state.ai.quiz.currentIndex = 0;
+        state.ai.quiz.answers = new Array(qs.length).fill('');
+        state.ai.quiz.inProgress = true;
+        state.ai.quiz.finished = false;
+
+        setStatus(`Quiz ready (${difficulty}).`);
+        renderQuiz();
+      };
+
+      autoCancel.onclick = closeAutoQuizModal;
+
+    } catch (err) {
+      autoTitle.classList.remove('is-loading');
+      autoTitle.textContent = 'Could not check focus';
+      autoBody.textContent = String(err);
+    }
+
+    return;
+  }
+
+  /* ================= MANUAL MODE ================= */
+  setStatus('Generating quiz…');
+  resetQuiz();
+
+  try {
+    const difficulty = difficultySel?.value || 'Medium';
+    const res = await window.electronAPI.ai.quiz(topic, difficulty, n);
+
+    if (!res || !res.ok) {
+      showError(res?.error || 'Quiz failed.');
       return;
     }
 
-    setStatus('Generating quiz…');
-    resetQuiz();
-    resultBox.textContent = '';
+    const qs = res.data.questions || [];
+    state.ai.quiz.questions = qs;
+    state.ai.quiz.currentIndex = 0;
+    state.ai.quiz.answers = new Array(qs.length).fill('');
+    state.ai.quiz.inProgress = true;
+    state.ai.quiz.finished = false;
 
-    try {
-      const res = await window.electronAPI.ai.quiz(topic, difficulty, n);
-      console.log('ai:quiz result', res);
-      if (!res || !res.ok || res.data?.ok === false) {
-        showError(res?.error || res?.data?.error || 'Quiz failed.');
-        return;
-      }
+    setStatus(`Quiz ready (${difficulty}).`);
+    renderQuiz();
+  } catch (err) {
+    showError(String(err));
+  }
+});
 
-      const qs = res.data.questions || [];
-      if (!qs.length) {
-        showError('No questions generated. Try another topic or difficulty.');
-        return;
-      }
 
-      state.ai.quiz.questions = qs;
-      state.ai.quiz.currentIndex = 0;
-      state.ai.quiz.answers = new Array(qs.length).fill('');
-      state.ai.quiz.inProgress = true;
-      state.ai.quiz.finished = false;
-      state.ai.quiz.report = null;
-
-      setStatus(`Quiz ready: ${qs.length} questions on "${topic}".`);
-      renderQuiz();
-    } catch (err) {
-      console.error('ai:quiz error', err);
-      showError(String(err));
-    }
-  });
 
   // ---- DOUBT BUTTON ----
   askBtn?.addEventListener('click', async () => {
@@ -1530,9 +1672,9 @@ function wireAI(){
 
     // figure out which PDF to summarize
     const selected = state.ai.selectedPdf;
-    let sourcePath = selected ? selected.path : null;
+    let source = selected ? selected.name : null;
 
-    if (!sourcePath) {
+    if (!source) {
       const ok = confirm('No specific note selected. Summarize ALL notes instead?');
       if (!ok) {
         setStatus('');
@@ -1544,8 +1686,9 @@ function wireAI(){
     resultBox.textContent = '';
 
     try {
-      // IMPORTANT: preload/main must be updated to accept (mode, sourcePath)
-      const res = await window.electronAPI.ai.summarize(mode, sourcePath);
+      console.log('[Renderer] summarize clicked with:', { mode, source });
+      // IMPORTANT: preload/main must be updated to accept (mode, source)
+      const res = await window.electronAPI.ai.summarize(mode, source);
       console.log('ai:summarize result', res);
       if (!res || !res.ok ) {
         showError(res?.error || res?.data?.error || 'Summary failed.');

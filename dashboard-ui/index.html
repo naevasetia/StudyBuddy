@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+<!-- dashboard-ui/index.html -->
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -305,6 +306,18 @@
                   placeholder="Topic (e.g. IPsec, Diffie–Hellman, RSA)…"
                 />
                 <div style="display: flex; gap: 8px">
+                  <label
+                    style="
+                      display: flex;
+                      align-items: center;
+                      gap: 6px;
+                      font-size: 13px;
+                    "
+                  >
+                    <input type="checkbox" id="aiAutoMode" />
+                    Auto difficulty (based on focus)
+                  </label>
+
                   <select id="aiDifficulty" style="flex: 1">
                     <option value="Easy">Easy</option>
                     <option value="Medium" selected>Medium</option>
@@ -364,30 +377,28 @@
             </div>
 
             <!-- Right: Result panel -->
-                 <!-- Right: Result panel -->
-    <div class="card">
-      <h2>Result</h2>
-      <div
-        id="aiStatus"
-        class="muted"
-        style="min-height: 18px; margin-bottom: 8px"
-      ></div>
-      <div
-        id="aiResult"
-        style="
-          border-radius: 10px;
-          border: 1px solid var(--border-strong);
-          background: var(--surface-2);
-          padding: 12px;
-          min-height: 220px;
-          font-size: 14px;
-        "
-      >
-        Select a feature on the left to see output here.
-      </div>
-    </div>
-
-
+            <!-- Right: Result panel -->
+            <div class="card">
+              <h2>Result</h2>
+              <div
+                id="aiStatus"
+                class="muted"
+                style="min-height: 18px; margin-bottom: 8px"
+              ></div>
+              <div
+                id="aiResult"
+                style="
+                  border-radius: 10px;
+                  border: 1px solid var(--border-strong);
+                  background: var(--surface-2);
+                  padding: 12px;
+                  min-height: 220px;
+                  font-size: 14px;
+                "
+              >
+                Select a feature on the left to see output here.
+              </div>
+            </div>
           </div>
         </section>
 
@@ -511,52 +522,58 @@
         </section>
         <!--analytics-->
         <section id="route-analytics" class="route">
-  <div class="card">
-    <div class="section-head" style="display:flex; justify-content:space-between; align-items:center;">
-      <h2>Analytics</h2>
-      <button class="btn small" id="printAnalyticsBtn">Print Report</button>
-    </div>
+          <div class="card">
+            <div
+              class="section-head"
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+              "
+            >
+              <h2>Analytics</h2>
+              <button class="btn small" id="printAnalyticsBtn">
+                Print Report
+              </button>
+            </div>
 
-    <!-- KPI -->
-    <div id="analyticsStats" class="analytics-grid"></div>
+            <!-- KPI -->
+            <div id="analyticsStats" class="analytics-grid"></div>
 
-    <!-- Charts Grid -->
-    <div class="analytics-charts">
+            <!-- Charts Grid -->
+            <div class="analytics-charts">
+              <div class="chart-card">
+                <h3>Focus Trend</h3>
+                <canvas id="focusChart"></canvas>
+              </div>
 
-      <div class="chart-card">
-        <h3>Focus Trend</h3>
-        <canvas id="focusChart"></canvas>
-      </div>
+              <div class="chart-card">
+                <h3>Attention Trend</h3>
+                <canvas id="attentionChart"></canvas>
+              </div>
 
-      <div class="chart-card">
-        <h3>Attention Trend</h3>
-        <canvas id="attentionChart"></canvas>
-      </div>
+              <div class="chart-card">
+                <h3>Focus vs Distracted</h3>
+                <canvas id="distractedPie"></canvas>
+              </div>
 
-      <div class="chart-card">
-        <h3>Focus vs Distracted</h3>
-        <canvas id="distractedPie"></canvas>
-      </div>
+              <div class="chart-card">
+                <h3>Session Duration Distribution</h3>
+                <canvas id="sessionDurationChart"></canvas>
+              </div>
 
-      <div class="chart-card">
-        <h3>Session Duration Distribution</h3>
-        <canvas id="sessionDurationChart"></canvas>
-      </div>
+              <div class="chart-card">
+                <h3>Focus vs Break Ratio</h3>
+                <canvas id="focusBreakChart"></canvas>
+              </div>
+            </div>
 
-      <div class="chart-card">
-        <h3>Focus vs Break Ratio</h3>
-        <canvas id="focusBreakChart"></canvas>
-      </div>
-
-    </div>
-
-    <div style="margin-top:30px;">
-      <h3>Study Streak (Last 30 Days)</h3>
-      <div id="streakGrid"></div>
-    </div>
-  </div>
-</section>
-
+            <div style="margin-top: 30px">
+              <h3>Study Streak (Last 30 Days)</h3>
+              <div id="streakGrid"></div>
+            </div>
+          </div>
+        </section>
 
         <!-- Settings -->
         <section id="route-settings" class="route">
@@ -665,8 +682,39 @@
       </main>
     </div>
 
+    <!-- Auto Quiz Modal -->
+    <div id="autoQuizModal" class="sb-modal hidden">
+      <div class="sb-modal-backdrop"></div>
+      <div class="sb-modal-card">
+        <div class="sb-modal-content">
+          <h3 id="autoQuizTitle">Checking your focus…</h3>
+          <p id="autoQuizBody" class="muted">
+            Please look at the screen for a few seconds.
+          </p>
+
+          <div id="autoQuizResult" style="display: none; margin-top: 12px">
+            <div>
+              <strong>Score:</strong> <span id="autoQuizScore"></span>/10
+            </div>
+            <div>
+              <strong>Status:</strong> <span id="autoQuizStatus"></span>
+            </div>
+            <div>
+              <strong>Difficulty:</strong> <span id="autoQuizDifficulty"></span>
+            </div>
+          </div>
+
+          <div class="sb-modal-actions">
+            <button class="btn ghost" id="autoQuizCancel">Cancel</button>
+            <button class="btn primary" id="autoQuizConfirm" disabled>
+              Start quiz
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="./app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
   </body>
 </html>

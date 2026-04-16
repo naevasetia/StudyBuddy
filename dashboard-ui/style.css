@@ -300,3 +300,105 @@ input::placeholder { color: var(--placeholder); }
   margin-bottom: 10px;
   font-size: 15px;
 }
+
+
+.sb-modal.hidden {
+  display: none;
+}
+
+/* ===== Auto Quiz Modal ===== */
+
+.sb-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+}
+
+.sb-modal.hidden {
+  display: none;
+}
+
+.sb-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+/* Card */
+.sb-modal-card {
+  position: relative;
+  margin: 15vh auto;
+  max-width: 420px;
+  background: var(--surface); /* FIXED */
+  border-radius: 14px;
+  padding: 20px;
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+
+  transform: translateY(-6px);
+  animation: modalEnter 0.25s ease-out;
+}
+
+/* Entrance animation */
+@keyframes modalEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-6px);
+  }
+}
+
+/* Title */
+.sb-modal-card h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+}
+
+/* Loading pulse ONLY when checking focus */
+.sb-modal-card h3.is-loading {
+  animation: focusPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes focusPulse {
+  0% { opacity: 0.4; }
+  50% { opacity: 1; }
+  100% { opacity: 0.4; }
+}
+
+/* Body text */
+.sb-modal-card p {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* Result box */
+#autoQuizResult {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+
+#autoQuizResult strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Actions */
+.sb-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}

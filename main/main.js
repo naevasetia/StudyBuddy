@@ -1,12 +1,14 @@
+// main/main.js
 /**
  * StudyBuddy — main process
  */
+
 const { app, BrowserWindow, screen, Tray, Menu, ipcMain, nativeImage, dialog, } = require('electron');
 const path = require('path');
 
-require('dotenv').config({
-  path: path.join(__dirname, '..', '.env')
-});
+// require('dotenv').config({
+//   path: path.join(__dirname, '..', '.env')
+// });
 
 const Store = require('electron-store').default;
 
@@ -107,15 +109,19 @@ function createTray() {
 }
 
 // ---------- Google Calendar OAuth helpers (paste into main/main.js) ----------
-require('dotenv').config();
+// require('dotenv').config();
 const { google } = require('googleapis');
 const http = require('http');
 const { shell } = require('electron'); // used to open the browser for consent
 
-const GCLIENT_ID = process.env.GCLIENT_ID;
-console.log('GCLIENT_ID from env:', process.env.GCLIENT_ID)
-const GCLIENT_SECRET = process.env.GCLIENT_SECRET || ''; // desktop apps often have no secret
-const OAUTH_PORT = Number(process.env.OAUTH_PORT || 42813);
+// const GCLIENT_ID = process.env.GCLIENT_ID;
+// console.log('GCLIENT_ID from env:', process.env.GCLIENT_ID)
+// const GCLIENT_SECRET = process.env.GCLIENT_SECRET || ''; // desktop apps often have no secret
+// const OAUTH_PORT = Number(process.env.OAUTH_PORT || 42813);
+
+const GCLIENT_ID = "803497680279-gffi8gkujm2vorvqh0nse8hqemjonvn4.apps.googleusercontent.com";
+const GCLIENT_SECRET = "";
+const OAUTH_PORT = 42813;
 const REDIRECT_URI = `http://127.0.0.1:${OAUTH_PORT}/oauth2callback`;
 const GCAL_SCOPES = ['https://www.googleapis.com/auth/calendar.events'];
 
@@ -146,7 +152,7 @@ function getOAuthClient() {
  *  - Exchange code for tokens and store them with electron-store (data)
  */
 async function startGoogleConnectFlow() {
-  if (!GCLIENT_ID) throw new Error('Missing GCLIENT_ID in env');
+  if (!GCLIENT_ID) throw new Error('Missing GCLIENT_ID ');
 
   const client = getOAuthClient();
 
@@ -345,16 +351,31 @@ async function postToAI(path, body) {
   return res.data;
 }
 
-ipcMain.handle('ai:quiz', async (_evt, { topic, difficulty, numQuestions }) => {
+ipcMain.handle(
+  'ai:quiz',
+  async (_evt, { topic, difficulty, numQuestions, mode }) => {
+    try {
+      const data = await postToAI('/quiz', {
+        topic,
+        difficulty,                 // may be undefined in auto
+        num_questions: numQuestions ?? 5,
+        mode: mode || 'manual'      // 🔥ho gya i think
+      });
+
+      return { ok: true, data };
+    } catch (err) {
+      console.error('ai:quiz error', err);
+      return { ok: false, error: String(err.message || err) };
+    }
+  }
+);
+
+ipcMain.handle('ai:delete-pdf', async (_evt, { source }) => {
   try {
-    const data = await postToAI('/quiz', {
-      topic,
-      difficulty,
-      num_questions: numQuestions ?? 5,
-    });
+    const data = await postToAI('/delete_pdf', { source });
     return { ok: true, data };
   } catch (err) {
-    console.error('ai:quiz error', err);
+    console.error('ai:delete-pdf error', err);
     return { ok: false, error: String(err.message || err) };
   }
 });
@@ -369,11 +390,12 @@ ipcMain.handle('ai:doubt', async (_evt, { question, lastAnswer }) => {
   }
 });
 
-ipcMain.handle('ai:summarize', async (_evt, { mode }) => {
+ipcMain.handle('ai:summarize', async (_evt, { mode, source }) => {
   try {
     // Step 1: Start the summarization job
     const startRes = await axios.post(`${AI_BASE_URL}/summarize/start`, {
-      mode: mode || 'Detailed'
+      mode: mode || 'Detailed',
+      source: source || null
     });
     const jobId = startRes.data.job_id;
 

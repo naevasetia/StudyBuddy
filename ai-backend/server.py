@@ -1,4 +1,4 @@
-# server.py
+# ai-backend/server.py
 import os
 from typing import List, Optional
 import uuid
@@ -23,15 +23,26 @@ from ai_core import (
     solve_doubt,
     summarize_notes,
     ingest_pdf,
+    delete_pdf_by_source,
 )
 
 app = FastAPI(title="StudyBuddy AI Backend")
 
+def map_score_to_difficulty(score: float) -> str:
+    if score < 4:
+        return "Easy"
+    elif score < 7:
+        return "Medium"
+    else:
+        return "Hard"
+
 
 class QuizRequest(BaseModel):
     topic: str
-    difficulty: str = "Medium"
+    difficulty: Optional[str] = None   # allow None in auto mode
     num_questions: int = 5
+    mode: str = "manual"               # "manual" | "auto"
+
 
 
 class CheckAnswerRequest(BaseModel):
@@ -46,19 +57,24 @@ class DoubtRequest(BaseModel):
 
 class SummaryRequest(BaseModel):
     mode: str = "Detailed"
-
+    source: Optional[str] = None 
 
 class IngestRequest(BaseModel):
     path: str
+
+class DeletePdfRequest(BaseModel):
+    source: str
 
 class AnalysticsRequest(BaseModel):
     sessions:List[dict]
     quiz_history:List[dict]
     emotion_history:List[dict]
 
-def run_summary(job_id: str, mode: str):
+
+
+def run_summary(job_id: str, mode: str, source:str):
     try:
-        result = summarize_notes(mode)
+        result = summarize_notes(mode, source)
         jobs[job_id] = {"status": "done", "result": result}
     except Exception as e:
         jobs[job_id] = {"status": "error", "result": str(e)}
@@ -74,10 +90,28 @@ def ingest(req: IngestRequest):
     pages = ingest_pdf(req.path)
     return {"ok": True, "pages": pages, "path": req.path}
 
+@app.post("/delete_pdf")
+def delete_pdf(req: DeletePdfRequest):
+    result = delete_pdf_by_source(req.source)
+    return {
+        "ok": True,
+        "source": req.source,
+        **result
+    }
 
 @app.post("/quiz")
 def quiz(req: QuizRequest):
-    if req.difficulty not in ["Easy", "Medium", "Hard"]:
+    # -------------------------
+    # Resolve difficulty
+    # -------------------------
+    if req.mode == "auto":
+        attention_result = run_attentiveness_check()
+        score = attention_result.get("score", 5)
+        difficulty = map_score_to_difficulty(score)
+    else:
+        difficulty = req.difficulty or "Medium"
+
+    if difficulty not in ["Easy", "Medium", "Hard"]:
         return {"ok": False, "error": "Invalid difficulty"}
 
     if len(req.topic.strip()) < 2:
@@ -87,7 +121,7 @@ def quiz(req: QuizRequest):
     questions = []
 
     for _ in range(req.num_questions):
-        q = generate_single_question(req.topic, req.difficulty, used_questions)
+        q = generate_single_question(req.topic, difficulty, used_questions)
         if q:
             used_questions.append(q["question"].strip())
             questions.append(q)
@@ -95,7 +129,13 @@ def quiz(req: QuizRequest):
     if not questions:
         return {"ok": False, "error": "No questions could be generated"}
 
-    return {"ok": True, "questions": questions}
+    return {
+        "ok": True,
+        "mode": req.mode,
+        "difficulty_used": difficulty,
+        "questions": questions
+    }
+
 
 
 @app.post("/quiz/check")
@@ -116,7 +156,7 @@ def summarize_start(req: SummaryRequest):
     job_id = str(uuid.uuid4())
     jobs[job_id] = {"status": "processing", "result": ""}
 
-    t = threading.Thread(target=run_summary, args=(job_id, mode))
+    t = threading.Thread(target=run_summary, args=(job_id, mode, req.source))
     t.start()
 
     return {"ok": True, "job_id": job_id}

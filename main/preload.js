@@ -19,14 +19,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   ai: {
-  quiz:      (topic, difficulty, numQuestions) =>
-    ipcRenderer.invoke('ai:quiz', { topic, difficulty, numQuestions }),
+    quiz: (topic, difficulty, numQuestions) =>
+      ipcRenderer.invoke('ai:quiz', {
+      topic,
+      difficulty,
+      numQuestions,
+      mode: 'manual'
+    }),
+
+    quizAuto: (topic, numQuestions) =>
+      ipcRenderer.invoke('ai:quiz', {
+      topic,
+      numQuestions,
+      mode: 'auto'
+    }),
+
   doubt:     (question, lastAnswer) =>
     ipcRenderer.invoke('ai:doubt', { question, lastAnswer }),
-  summarize: (mode) =>
-    ipcRenderer.invoke('ai:summarize', { mode }),
+  summarize: (mode, source=null) =>
+    ipcRenderer.invoke('ai:summarize', { mode,source}),
   ingest: () =>
     ipcRenderer.invoke('ai:ingest'),
+  deletePdf: (source) =>
+    ipcRenderer.invoke('ai:delete-pdf', { source }),
   attentive: () =>
     ipcRenderer.invoke('ai:attentive'),
   analytics: (payload) =>

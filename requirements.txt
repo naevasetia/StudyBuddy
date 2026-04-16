@@ -4,9 +4,11 @@ sentence-transformers
 pypdf
 python-dotenv
 groq
-fastapi uvicorn
-torch 
-torchvision torchaudio
+fastapi
+uvicorn
+torch
+torchvision
+torchaudio
 opencv-python
 tensorflow
 numpy
