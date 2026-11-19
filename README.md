@@ -1,4 +1,4 @@
-# 🧠 StudyBuddy — AI-Powered Intelligent Study Assistant
+# 🧠 StudyBuddy: AI-Powered Intelligent Study Assistant
 
 > An intelligent desktop application that monitors student engagement in real-time through webcam-based behavioural and emotion analysis, and adapts the learning experience accordingly.
 
@@ -8,8 +8,8 @@
 <img width="1600" height="940" alt="1" src="https://github.com/user-attachments/assets/05dc5dab-0803-4d2f-9cbd-99bd290acece" />
 <img width="1291" height="889" alt="3" src="https://github.com/user-attachments/assets/5086a724-2023-4e6b-8a89-f12633ba0b7c" />
 <img width="1342" height="924" alt="4" src="https://github.com/user-attachments/assets/acd234b3-07d2-4d97-8826-a3bb6f07d029" />
-<img width="583" height="774" alt="5" src="https://github.com/user-attachments/assets/ef68e5c7-db6a-4c58-be63-583d8fc9241b" />
-<img width="560" height="805" alt="6" src="https://github.com/user-attachments/assets/52e9ca5a-c66a-4b72-853b-c910583ac026" />
+<img width="48%" height="774" alt="5" src="https://github.com/user-attachments/assets/ef68e5c7-db6a-4c58-be63-583d8fc9241b" />
+<img width="48%" height="805" alt="6" src="https://github.com/user-attachments/assets/52e9ca5a-c66a-4b72-853b-c910583ac026" />
 
 
 ## 📌 Table of Contents
